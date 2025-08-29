@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapLibre GL JS - GeoJSON Polygons</title>
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        .maplibregl-popup {
+            max-width: 300px;
+        }
+        
+        .maplibregl-popup-content {
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .popup-content {
+            padding: 15px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .popup-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .popup-info {
+            color: #555;
+            margin: 5px 0;
+        }
+        
+        .popup-info strong {
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        // Initialize the map with a free light theme
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+            center: [0, 0],
+            zoom: 2
+        });
+
+        // Create a popup instance
+        const popup = new maplibregl.Popup({
+            closeButton: true,
+            closeOnClick: true,
+            offset: 10
+        });
+
+        map.on('load', () => {
+            // Load the GeoJSON file
+            fetch('./all.geojson')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('GeoJSON loaded successfully:', data);
+                    
+                    // Ensure all features have an ID
+                    data.features.forEach((feature, index) => {
+                        if (!feature.id) {
+                            feature.id = index;
+                        }
+                    });
+                    
+                    // Add the GeoJSON data as a source with generateId option
+                    map.addSource('polygons', {
+                        'type': 'geojson',
+                        'data': data,
+                        'generateId': true // This ensures features get IDs if they don't have them
+                    });
+
+                    // Add a fill layer for the polygons with lighter opacity
+                    map.addLayer({
+                        'id': 'polygon-fill',
+                        'type': 'fill',
+                        'source': 'polygons',
+                        'paint': {
+                            'fill-color': '#3498db',
+                            'fill-opacity': 0.2, // Light default opacity
+                            'fill-outline-color': '#2980b9'
+                        }
+                    });
+
+                    // Add a stroke layer for polygon borders
+                    map.addLayer({
+                        'id': 'polygon-stroke',
+                        'type': 'line',
+                        'source': 'polygons',
+                        'paint': {
+                            'line-color': '#2980b9',
+                            'line-width': 1,
+                            'line-opacity': 0.5
+                        }
+                    });
+
+                    // Add hover layer that will be shown on mouse hover
+                    map.addLayer({
+                        'id': 'polygon-hover',
+                        'type': 'fill',
+                        'source': 'polygons',
+                        'paint': {
+                            'fill-color': '#3498db',
+                            'fill-opacity': 0.6
+                        },
+                        'filter': ['==', ['id'], -1] // Initially hide all features
+                    });
+
+                    // Add hover stroke layer
+                    map.addLayer({
+                        'id': 'polygon-hover-stroke',
+                        'type': 'line',
+                        'source': 'polygons',
+                        'paint': {
+                            'line-color': '#2980b9',
+                            'line-width': 3,
+                            'line-opacity': 1.0
+                        },
+                        'filter': ['==', ['id'], -1] // Initially hide all features
+                    });
+
+                    // Calculate bounds and fit map to data
+                    const bounds = new maplibregl.LngLatBounds();
+                    data.features.forEach(feature => {
+                        if (feature.geometry.type === 'Polygon') {
+                            feature.geometry.coordinates[0].forEach(coord => {
+                                bounds.extend(coord);
+                            });
+                        } else if (feature.geometry.type === 'MultiPolygon') {
+                            feature.geometry.coordinates.forEach(polygon => {
+                                polygon[0].forEach(coord => {
+                                    bounds.extend(coord);
+                                });
+                            });
+                        }
+                    });
+                    
+                    map.fitBounds(bounds, { padding: 50 });
+
+                    // Mouse events for interactivity
+                    map.on('mouseenter', 'polygon-fill', () => {
+                        map.getCanvas().style.cursor = 'pointer';
+                    });
+
+                    map.on('mouseleave', 'polygon-fill', () => {
+                        map.getCanvas().style.cursor = '';
+                        // Hide hover layers
+                        map.setFilter('polygon-hover', ['==', ['id'], -1]);
+                        map.setFilter('polygon-hover-stroke', ['==', ['id'], -1]);
+                    });
+
+                    map.on('mousemove', 'polygon-fill', (e) => {
+                        if (e.features.length > 0) {
+                            const feature = e.features[0];
+                            const featureId = feature.id;
+                            
+                            // Show hover effect for the current feature
+                            map.setFilter('polygon-hover', ['==', ['id'], featureId]);
+                            map.setFilter('polygon-hover-stroke', ['==', ['id'], featureId]);
+                        }
+                    });
+
+                    // Click event for popup
+                    map.on('click', 'polygon-fill', (e) => {
+                        if (e.features.length > 0) {
+                            const feature = e.features[0];
+                            const properties = feature.properties;
+                            
+                            // Get the name from various possible property keys
+                            const name = properties.name || 
+                                      
+                                        'Unnamed Polygon';
+                            
+                            // Build popup content
+                            let popupContent = `
+                                <div class="popup-content">
+                                    <div class="popup-title">${name}</div>
+                            `;
+                            
+                            // Add other properties if they exist
+                            // const excludeKeys = ['name', 'Name', 'title', 'Title', 'label'];
+                            // Object.keys(properties).forEach(key => {
+                            //     if (!excludeKeys.includes(key) && properties[key] !== null && properties[key] !== '') {
+                            //         const value = properties[key];
+                            //         const displayKey = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+                            //         popupContent += `<div class="popup-info"><strong>${displayKey}:</strong> ${value}</div>`;
+                            //     }
+                            // });
+                            
+                            popupContent += '</div>';
+                            
+                            // Show popup at click location
+                            popup.setLngLat(e.lngLat)
+                                 .setHTML(popupContent)
+                                 .addTo(map);
+                        }
+                    });
+
+                })
+                .catch(error => {
+                    console.error('Error loading GeoJSON:', error);
+                    alert('Error loading GeoJSON file. Please make sure "all.geojson" exists in the same directory as this HTML file.');
+                });
+        });
+
+        // Optional: Add navigation controls
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+        
+        // Optional: Add fullscreen control
+        map.addControl(new maplibregl.FullscreenControl(), 'top-right');
+    </script>
+</body>
+</html>
