@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,27 +13,27 @@
             padding: 0;
             font-family: 'Segoe UI', Arial, sans-serif;
         }
-        
+
         #map {
             height: 100vh;
             width: 100vw;
         }
-        
+
         .maplibregl-popup {
             max-width: 300px;
         }
-        
+
         .maplibregl-popup-content {
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
-        
+
         .popup-content {
             padding: 15px;
             font-size: 14px;
             line-height: 1.4;
         }
-        
+
         .popup-title {
             font-size: 18px;
             font-weight: 600;
@@ -41,17 +42,18 @@
             border-bottom: 2px solid #3498db;
             padding-bottom: 5px;
         }
-        
+
         .popup-info {
             color: #555;
             margin: 5px 0;
         }
-        
+
         .popup-info strong {
             color: #2c3e50;
         }
     </style>
 </head>
+
 <body>
     <div id="map"></div>
 
@@ -82,14 +84,14 @@
                 })
                 .then(data => {
                     console.log('GeoJSON loaded successfully:', data);
-                    
+
                     // Ensure all features have an ID
                     data.features.forEach((feature, index) => {
                         if (!feature.id) {
                             feature.id = index;
                         }
                     });
-                    
+
                     // Add the GeoJSON data as a source with generateId option
                     map.addSource('polygons', {
                         'type': 'geojson',
@@ -161,7 +163,7 @@
                             });
                         }
                     });
-                    
+
                     map.fitBounds(bounds, { padding: 50 });
 
                     // Mouse events for interactivity
@@ -180,7 +182,7 @@
                         if (e.features.length > 0) {
                             const feature = e.features[0];
                             const featureId = feature.id;
-                            
+
                             // Show hover effect for the current feature
                             map.setFilter('polygon-hover', ['==', ['id'], featureId]);
                             map.setFilter('polygon-hover-stroke', ['==', ['id'], featureId]);
@@ -192,18 +194,18 @@
                         if (e.features.length > 0) {
                             const feature = e.features[0];
                             const properties = feature.properties;
-                            
+
                             // Get the name from various possible property keys
-                            const name = properties.name || 
-                                      
-                                        'Unnamed Polygon';
-                            
+                            const name = properties.name ||
+
+                                'Unnamed Polygon';
+
                             // Build popup content
                             let popupContent = `
                                 <div class="popup-content">
                                     <div class="popup-title">${name}</div>
                             `;
-                            
+
                             // Add other properties if they exist
                             // const excludeKeys = ['name', 'Name', 'title', 'Title', 'label'];
                             // Object.keys(properties).forEach(key => {
@@ -213,13 +215,13 @@
                             //         popupContent += `<div class="popup-info"><strong>${displayKey}:</strong> ${value}</div>`;
                             //     }
                             // });
-                            
+
                             popupContent += '</div>';
-                            
+
                             // Show popup at click location
                             popup.setLngLat(e.lngLat)
-                                 .setHTML(popupContent)
-                                 .addTo(map);
+                                .setHTML(popupContent)
+                                .addTo(map);
                         }
                     });
 
@@ -232,9 +234,10 @@
 
         // Optional: Add navigation controls
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
-        
+
         // Optional: Add fullscreen control
         map.addControl(new maplibregl.FullscreenControl(), 'top-right');
     </script>
 </body>
+
 </html>
