@@ -197,9 +197,11 @@
         });
 
         // Create a popup instance
+        // Use closeOnClick: false so clicking another polygon doesn't only close the popup
+        // and require a second click to open the new one.
         const popup = new maplibregl.Popup({
             closeButton: true,
-            closeOnClick: true,
+            closeOnClick: false,
             offset: 10
         });
 
@@ -238,7 +240,9 @@
                 const listItem = document.createElement('div');
                 listItem.className = 'wilderness-item';
                 listItem.textContent = name;
+                // store both the sorted index and the feature id to allow lookups from map events
                 listItem.dataset.featureIndex = index;
+                listItem.dataset.featureId = (feature.id !== undefined && feature.id !== null) ? String(feature.id) : String(index);
 
                 // Add click event to fit bounds
                 listItem.addEventListener('click', () => {
@@ -256,9 +260,10 @@
                         duration: 1000 // Smooth animation
                     });
 
-                    // Optionally highlight the feature temporarily
-                    map.setFilter('polygon-hover', ['==', ['id'], feature.id || index]);
-                    map.setFilter('polygon-hover-stroke', ['==', ['id'], feature.id || index]);
+                    // Optionally highlight the feature temporarily on the map
+                    const fid = feature.id !== undefined && feature.id !== null ? feature.id : index;
+                    map.setFilter('polygon-hover', ['==', ['id'], fid]);
+                    map.setFilter('polygon-hover-stroke', ['==', ['id'], fid]);
 
                     // Remove map highlight after a delay but keep list highlight
                     setTimeout(() => {
@@ -419,10 +424,32 @@
 
                             popupContent += '</div>';
 
+                            // Ensure any existing popup is removed first so the new popup appears immediately
+                            try { popup.remove(); } catch (e) { /* ignore */ }
+
                             // Show popup at click location
                             popup.setLngLat(e.lngLat)
                                 .setHTML(popupContent)
                                 .addTo(map);
+
+                            // Highlight and scroll to the corresponding list item in the sidebar
+                            try {
+                                const fid = feature.id !== undefined && feature.id !== null ? String(feature.id) : null;
+                                if (fid !== null) {
+                                    // remove previous highlights
+                                    document.querySelectorAll('.wilderness-item.highlighted').forEach(item => item.classList.remove('highlighted'));
+
+                                    const listEl = document.querySelector(`.wilderness-item[data-feature-id="${fid}"]`);
+                                    if (listEl) {
+                                        listEl.classList.add('highlighted');
+                                        // ensure the list container scrolls so the item is visible
+                                        listEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }
+                                }
+                            } catch (err) {
+                                // ignore any errors accessing DOM in unusual contexts
+                                console.warn('Could not scroll to list item:', err);
+                            }
                         }
                     });
 
