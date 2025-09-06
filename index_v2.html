@@ -196,8 +196,8 @@
             zoom: 2
         });
 
-    // Track currently selected feature (persistent selection)
-    let selectedFeatureId = null;
+        // Track currently selected feature (persistent selection)
+        let selectedFeatureId = null;
 
         // Create a popup instance
         // Use closeOnClick: false so clicking another polygon doesn't only close the popup
@@ -259,6 +259,22 @@
                     // Update selection layers
                     map.setFilter('polygon-selected', ['==', ['id'], selectedFeatureId]);
                     map.setFilter('polygon-selected-stroke', ['==', ['id'], selectedFeatureId]);
+
+                    // Build and show popup (same style as map click)
+                    try { popup.remove(); } catch (e) { /* ignore */ }
+                    const properties = feature.properties || {};
+                    const name = properties.name || 'Unnamed Polygon';
+                    let popupContent = `
+                        <div class="popup-content">
+                            <div class="popup-title">${name}</div>
+                    `;
+                    // (Optional) include more properties later if desired
+                    popupContent += '</div>';
+                    const center = bounds.getCenter();
+                    popup.setLngLat(center).setHTML(popupContent).addTo(map);
+                    // Clear any hover highlight so selection stands out
+                    map.setFilter('polygon-hover', ['==', ['id'], -1]);
+                    map.setFilter('polygon-hover-stroke', ['==', ['id'], -1]);
                 });
 
                 listContainer.appendChild(listItem);
